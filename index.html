@@ -4,54 +4,138 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simulador de Taxas</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
-            padding: 20px;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
         }
+
+        h2 {
+            text-align: center;
+            margin: 20px;
+        }
+
         .container {
             display: flex;
+            flex-wrap: wrap;
             justify-content: center;
-            gap: 20px;
+            padding: 20px;
         }
+
         .formulario {
             width: 100%;
             max-width: 400px;
             padding: 20px;
+            margin: 10px;
+            background-color: #fff;
             border: 1px solid #ddd;
             border-radius: 10px;
             box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
         }
+
         input, button {
             width: 100%;
             margin: 10px 0;
-            padding: 10px;
+            padding: 12px;
+            box-sizing: border-box;
+            font-size: 16px;
         }
-        .resultado {
-            margin-top: 20px;
-            font-size: 18px;
-        }
+
         label {
             display: block;
             margin-top: 10px;
         }
-        .economia {
+
+        .resultado {
             margin-top: 20px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            background-color: #f4f4f4;
+            font-size: 18px;
+        }
+
+        .formulario h3 {
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .resultado h3 {
+            font-size: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .formulario {
+                width: 90%;
+                padding: 15px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+
+            .resultado {
+                font-size: 16px;
+            }
+
+            input, button {
+                font-size: 14px;
+            }
+
+            .resultado h3 {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h2 {
+                font-size: 20px;
+            }
+
+            input, button {
+                font-size: 14px;
+            }
+
+            .formulario {
+                width: 100%;
+                padding: 10px;
+            }
+
+            .resultado {
+                font-size: 14px;
+            }
+
+            .resultado h3 {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
 <body>
+    <div style="text-align: center; margin-bottom: 20px;">
+        <h3>Total Economizado Anualmente</h3>
+        <p>Valor Economizado Anual Total: <strong>R$ <span id="totalEconomizadoAnual">0.00</span></strong></p>
+    </div>
+
     <h2>Simulador de Taxas de Maquininha</h2>
+
+    <!-- Campo para Nome do Cliente -->
+    <div style="text-align: center; margin-bottom: 20px;">
+        <label for="nomeCliente">Nome do Cliente:</label>
+        <input type="text" id="nomeCliente" placeholder="Digite o nome do cliente" oninput="calcularLucro()" />
+    </div>
+
     <label for="faturamento">Faturamento Mensal (R$):</label>
     <input type="number" id="faturamento" placeholder="Digite o faturamento" oninput="calcularLucro()" />
+    
     <div class="container">
         <div class="formulario">
             <h3>Mercado Pago</h3>
-            <div id="mercadoPago"></div>
+            <div id="minhasTaxas"></div>
         </div>
         <div class="formulario">
             <h3>Taxas Concorrente</h3>
@@ -61,54 +145,45 @@
             <h3>Diferença de Taxas</h3>
             <div id="diferencaTaxas"></div>
         </div>
-        <div class="formulario">
-            <h3>Valor Economizado</h3>
-            <div id="valorEconomizado"></div>
-        </div>
-        <div class="formulario">
-            <h3>Valor Economizado Anual</h3>
-            <div id="valorEconomizadoAnual"></div>
-        </div>
     </div>
 
-    <div class="economia">
-        <h3>Economia Mensal e Anual</h3>
-        <p id="economiaMensal">Economia Mensal: R$ 0,00</p>
-        <p id="economiaAnual">Economia Anual: R$ 0,00</p>
-    </div>
+    <button onclick="gerarPDF()">Gerar PDF</button>
 
     <div class="resultado" id="resultado"></div>
+
+    <div style="text-align: center; margin-top: 20px;">
+        <h3>Total de Taxas Anuais</h3>
+        <p>Somatória das Taxas Anuais: <strong>R$ <span id="somaTaxasAnuais">0.00</span></strong></p>
+    </div>
 
     <script>
         const taxas = ["Debito", "CreditoVista", "Parcelado1x", "Parcelado2x", "Parcelado3x", "Parcelado4x", "Parcelado5x", "Parcelado6x", "Parcelado7x", "Parcelado8x", "Parcelado9x", "Parcelado10x", "Parcelado11x", "Parcelado12x", "LinkPagamento"];
 
+        let totalEconomizadoAnual = 0;
+
         taxas.forEach(taxa => {
-            document.getElementById("mercadoPago").innerHTML += `<label>Taxa ${taxa} (%):</label><input type="number" id="mercadoPago${taxa}" placeholder="Ex: 1.5" oninput="calcularLucro()" />`;
+            document.getElementById("minhasTaxas").innerHTML += `<label>Taxa ${taxa} (%):</label><input type="number" id="minhaTaxa${taxa}" placeholder="Ex: 1.5" oninput="calcularLucro()" />`;
             document.getElementById("taxasConcorrente").innerHTML += `<label>Taxa ${taxa} Concorrente (%):</label><input type="number" id="taxaConcorrente${taxa}" placeholder="Ex: 1.5" oninput="calcularLucro()" />`;
             document.getElementById("diferencaTaxas").innerHTML += `<p id="diferenca${taxa}">Diferença ${taxa}: -</p>`;
-            document.getElementById("valorEconomizado").innerHTML += `<p id="economizado${taxa}">Economia ${taxa}: -</p>`;
-            document.getElementById("valorEconomizadoAnual").innerHTML += `<p id="economizadoAnual${taxa}">Economia Anual ${taxa}: -</p>`;
         });
 
         function calcularLucro() {
             let faturamento = parseFloat(document.getElementById("faturamento").value);
+            let somaTaxasAnuais = 0;
+            totalEconomizadoAnual = 0;
+
             if (isNaN(faturamento) || faturamento <= 0) {
-                return; // Não faz nada se o faturamento for inválido
+                alert("Por favor, insira um faturamento válido.");
+                return;
             }
 
-            let economiaMensal = 0;
-            let economiaAnual = 0;
-            
             let resultados = taxas.map(taxa => {
-                let minhaTaxa = parseFloat(document.getElementById(`mercadoPago${taxa}`).value);
+                let minhaTaxa = parseFloat(document.getElementById(`minhaTaxa${taxa}`).value);
                 let taxaConcorrente = parseFloat(document.getElementById(`taxaConcorrente${taxa}`).value);
-
-                // Calcular diferença de taxas
                 if (!isNaN(minhaTaxa) && !isNaN(taxaConcorrente)) {
                     let diferenca = (taxaConcorrente - minhaTaxa).toFixed(2);
                     let diferencaElement = document.getElementById(`diferenca${taxa}`);
                     diferencaElement.innerText = `Diferença ${taxa}: ${diferenca}%`;
-
                     if (diferenca > 0) {
                         diferencaElement.style.color = 'green';
                     } else if (diferenca < 0) {
@@ -116,41 +191,50 @@
                     } else {
                         diferencaElement.style.color = 'black';
                     }
-
-                    // Calcular economia em valor
-                    let economia = (faturamento * (diferenca / 100)).toFixed(2);
-                    let economizadoElement = document.getElementById(`economizado${taxa}`);
-                    economizadoElement.innerText = `Economia ${taxa}: R$ ${economia}`;
-
-                    economiaMensal += parseFloat(economia);
-
-                    // Calcular economia anual (multiplicada por 12)
-                    let economiaAnualValor = (faturamento * (diferenca / 100) * 12).toFixed(2);
-                    let economizadoAnualElement = document.getElementById(`economizadoAnual${taxa}`);
-                    economizadoAnualElement.innerText = `Economia Anual ${taxa}: R$ ${economiaAnualValor}`;
-                    economiaAnual += parseFloat(economiaAnualValor);
                 }
-
-                // Calcular lucro mensal e anual
                 let resultado = `<h4>${taxa.replace(/([A-Z])/g, ' $1')}</h4>`;
-                if (!isNaN(minhaTaxa)) resultado += calcular(faturamento, minhaTaxa, "Mercado Pago");
-                if (!isNaN(taxaConcorrente)) resultado += calcular(faturamento, taxaConcorrente, "Concorrente");
-
+                if (!isNaN(minhaTaxa)) resultado += calcular(faturamento, minhaTaxa, "Mercado Pago", true);
+                if (!isNaN(taxaConcorrente)) resultado += calcular(faturamento, taxaConcorrente, "Concorrente", false);
                 return resultado;
             });
 
-            // Exibir economia mensal e anual
-            document.getElementById("economiaMensal").innerText = `Economia Mensal: R$ ${economiaMensal.toFixed(2)}`;
-            document.getElementById("economiaAnual").innerText = `Economia Anual: R$ ${economiaAnual.toFixed(2)}`;
-
             document.getElementById("resultado").innerHTML = resultados.join('<hr>');
+            document.getElementById("somaTaxasAnuais").innerText = somaTaxasAnuais.toFixed(2);
+            document.getElementById("totalEconomizadoAnual").innerText = totalEconomizadoAnual.toFixed(2);
         }
 
-        function calcular(faturamento, taxa, tipo) {
+        function calcular(faturamento, taxa, tipo, isMinhaTaxa) {
             let desconto = faturamento * (taxa / 100);
             let lucroMensal = faturamento - desconto;
             let lucroAnual = lucroMensal * 12;
+
+            if (isMinhaTaxa) {
+                totalEconomizadoAnual += lucroAnual;
+            }
+            
             return `<p>${tipo} - Taxa: <strong>${taxa}%</strong></p><p>Lucro Mensal: <strong>R$ ${lucroMensal.toFixed(2)}</strong></p><p>Lucro Anual: <strong>R$ ${lucroAnual.toFixed(2)}</strong></p>`;
+        }
+
+        function gerarPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const nomeCliente = document.getElementById("nomeCliente").value || "Cliente Anônimo";
+            const faturamento = document.getElementById("faturamento").value || 0;
+
+            doc.text(`Simulador de Taxas - Cliente: ${nomeCliente}`, 10, 10);
+            doc.text(`Faturamento Mensal: R$ ${faturamento}`, 10, 20);
+
+            let yPosition = 30;
+            taxas.forEach(taxa => {
+                let minhaTaxa = parseFloat(document.getElementById(`minhaTaxa${taxa}`).value);
+                let taxaConcorrente = parseFloat(document.getElementById(`taxaConcorrente${taxa}`).value);
+                let diferenca = taxaConcorrente - minhaTaxa;
+                doc.text(`${taxa}: Mercado Pago - ${minhaTaxa}% | Concorrente - ${taxaConcorrente}% | Diferença: ${diferenca.toFixed(2)}%`, 10, yPosition);
+                yPosition += 10;
+            });
+
+            doc.text(`Total Economizado Anual: R$ ${totalEconomizadoAnual.toFixed(2)}`, 10, yPosition);
+            doc.save(`${nomeCliente}_Simulador_Taxas.pdf`);
         }
     </script>
 </body>
